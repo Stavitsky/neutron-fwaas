@@ -32,9 +32,11 @@ class CLITestV20FirewallJSON(test_cli20.CLITestV20Base):
         tenant_id = 'my-tenant'
         my_id = 'my-id'
         policy_id = 'my-policy-id'
-        args = ['--tenant-id', tenant_id, policy_id, ]
-        position_names = ['firewall_policy_id', ]
-        position_values = [policy_id, ]
+        router_id = 'test_r1'
+        list_router_id = [router_id]
+        args = ['--tenant-id', tenant_id, policy_id, router_id]
+        position_names = ['firewall_policy_id', 'router_ids']
+        position_values = [policy_id, list_router_id]
         self._test_create_resource(resource, cmd, name, my_id, args,
                                    position_names, position_values,
                                    admin_state_up=True, tenant_id=tenant_id)
@@ -48,13 +50,16 @@ class CLITestV20FirewallJSON(test_cli20.CLITestV20Base):
         policy_id = 'my-policy-id'
         tenant_id = 'my-tenant'
         my_id = 'my-id'
+        router_id = 'test_r1'
+        list_router_id = [router_id]
         args = ['--description', description,
                 '--shared',
                 '--admin-state-down',
                 '--tenant-id', tenant_id,
-                policy_id]
-        position_names = ['firewall_policy_id', ]
-        position_values = [policy_id, ]
+                policy_id,
+                router_id]
+        position_names = ['firewall_policy_id', 'router_ids']
+        position_values = [policy_id, list_router_id]
         self._test_create_resource(resource, cmd, name, my_id, args,
                                    position_names, position_values,
                                    description=description,
