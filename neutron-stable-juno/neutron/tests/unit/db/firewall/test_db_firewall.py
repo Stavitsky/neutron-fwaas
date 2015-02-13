@@ -280,7 +280,7 @@ class FirewallPluginDbTestCase(test_db_plugin.NeutronDbPluginV2TestCase):
     @contextlib.contextmanager
     def firewall(self, fmt=None, name='firewall_1', description=DESCRIPTION,
                  firewall_policy_id=None, admin_state_up=True,
-                 do_delete=True,router_ids=None, **kwargs):
+                 do_delete=True, router_ids=None, **kwargs):
         if not fmt:
             fmt = self.fmt
         res = self._create_firewall(fmt, name, description, firewall_policy_id,
@@ -634,12 +634,14 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
-            with self.firewall(firewall_policy_id=fwp_id,
-                               admin_state_up=
-                               ADMIN_STATE_UP):
-                req = self.new_delete_request('firewall_policies', fwp_id)
-                res = req.get_response(self.ext_api)
-                self.assertEqual(res.status_int, 409)
+            with self.router() as r:
+                with self.firewall(firewall_policy_id=fwp_id,
+                                   router_ids=[r['router']['id']],
+                                   admin_state_up=
+                                   ADMIN_STATE_UP):
+                    req = self.new_delete_request('firewall_policies', fwp_id)
+                    res = req.get_response(self.ext_api)
+                    self.assertEqual(res.status_int, 409)
 
     def test_create_firewall_rule(self):
         attrs = self._get_test_firewall_rule_attrs()
@@ -932,32 +934,45 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
-            with self.firewall(name=name,
-                               firewall_policy_id=fwp_id,
-                               admin_state_up=
-                               ADMIN_STATE_UP) as firewall:
-                req = self.new_show_request('firewalls',
-                                            firewall['firewall']['id'],
-                                            fmt=self.fmt)
-                res = self.deserialize(self.fmt,
-                                       req.get_response(self.ext_api))
-                for k, v in attrs.iteritems():
-                    self.assertEqual(res['firewall'][k], v)
+            with self.router() as r:
+                router = r['router']
+                attrs['router_ids'] = [router['id']]
+                with self.firewall(name=name,
+                                   firewall_policy_id=fwp_id,
+                                   router_ids=[router['id']],
+                                   admin_state_up=
+                                   ADMIN_STATE_UP) as firewall:
+                    req = self.new_show_request('firewalls',
+                                                firewall['firewall']['id'],
+                                                fmt=self.fmt)
+                    res = self.deserialize(self.fmt,
+                                           req.get_response(self.ext_api))
+                    for k, v in attrs.iteritems():
+                        self.assertEqual(res['firewall'][k], v)
 
     def test_list_firewalls(self):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
-            with contextlib.nested(self.firewall(name='fw1',
-                                                 firewall_policy_id=fwp_id,
-                                                 description='fw'),
-                                   self.firewall(name='fw2',
-                                                 firewall_policy_id=fwp_id,
-                                                 description='fw'),
-                                   self.firewall(name='fw3',
-                                                 firewall_policy_id=fwp_id,
-                                                 description='fw')) as fwalls:
-                self._test_list_resources('firewall', fwalls,
-                                          query_params='description=fw')
+            with contextlib.nested(self.router(),
+                                   self.router(),
+                                   self.router()) as rs:
+                r_ids = []
+                for r in range(0, 3):
+                    r_ids.append(rs[r]['router']['id'])
+                with contextlib.nested(self.firewall(name='fw1',
+                                                     firewall_policy_id=fwp_id,
+                                                     router_ids=[r_ids[0]],
+                                                     description='fw'),
+                                       self.firewall(name='fw2',
+                                                     firewall_policy_id=fwp_id,
+                                                     router_ids=[r_ids[1]],
+                                                     description='fw'),
+                                       self.firewall(name='fw3',
+                                                     firewall_policy_id=fwp_id,
+                                                     router_ids=[r_ids[2]],
+                                                     description='fw')) as fws:
+                    self._test_list_resources('firewall', fws,
+                                              query_params='description=fw')
 
     def test_update_firewall(self):
         name = "new_firewall1"
@@ -966,25 +981,29 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
-            with self.firewall(firewall_policy_id=fwp_id,
-                               admin_state_up=
-                               ADMIN_STATE_UP) as firewall:
-                data = {'firewall': {'name': name}}
-                req = self.new_update_request('firewalls', data,
-                                              firewall['firewall']['id'])
-                res = self.deserialize(self.fmt,
-                                       req.get_response(self.ext_api))
-                for k, v in attrs.iteritems():
-                    self.assertEqual(res['firewall'][k], v)
+            with self.router() as r:
+                attrs['router_ids'] = [r['router']['id']]
+                with self.firewall(firewall_policy_id=fwp_id,
+                                   router_ids=[r['router']['id']],
+                                   admin_state_up=
+                                   ADMIN_STATE_UP) as firewall:
+                    data = {'firewall': {'name': name}}
+                    req = self.new_update_request('firewalls', data,
+                                                  firewall['firewall']['id'])
+                    res = self.deserialize(self.fmt,
+                                           req.get_response(self.ext_api))
+                    for k, v in attrs.iteritems():
+                        self.assertEqual(res['firewall'][k], v)
 
     def test_delete_firewall(self):
         ctx = context.get_admin_context()
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             with self.router() as r:
+                print [r['router']['id']]
                 with self.firewall(firewall_policy_id=fwp_id,
-                                   do_delete=False,
-                                   router_ids=[r['router']['id']]) as fw:
+                                   router_ids=[r['router']['id']],
+                                   do_delete=False) as fw:
                     fw_id = fw['firewall']['id']
                     req = self.new_delete_request('firewalls', fw_id)
                     res = req.get_response(self.ext_api)
@@ -1253,5 +1272,5 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
                                   body_data={'firewall_rule_id': None})
 
 
-class TestFirewallDBPluginXML(TestFirewallDBPlugin):
-    fmt = 'xml'
+#class TestFirewallDBPluginXML(TestFirewallDBPlugin):
+    #fmt = 'xml'
