@@ -59,10 +59,10 @@ class FirewallRule(model_base.BASEV2, models_v2.HasId, models_v2.HasTenant):
 class RouterFirewallBinding(model_base.BASEV2):
     __tablename__ = 'router_firewall_bindings'
     router_id = sa.Column(sa.String(255),
-                          sa.ForeignKey('routers.id'),
+                          sa.ForeignKey('routers.id', ondelete='CASCADE'),
                           nullable=True, primary_key=True)
     firewall_id = sa.Column(sa.String(36),
-                            sa.ForeignKey('firewalls.id'),
+                            sa.ForeignKey('firewalls.id', ondelete='CASCADE'),
                             nullable=True)
     firewall = orm.relationship('Firewall', backref='rfb')
 
