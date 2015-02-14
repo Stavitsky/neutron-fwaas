@@ -260,8 +260,7 @@ class FirewallPluginDbTestCase(test_db_plugin.NeutronDbPluginV2TestCase):
 
     def _create_firewall(self, fmt, name, description, firewall_policy_id,
                          admin_state_up=True, expected_res_status=None,
-                         router_ids=None,
-                         **kwargs):
+                         router_ids=None, **kwargs):
         tenant_id = kwargs.get('tenant_id', self._tenant_id)
         data = {'firewall': {'name': name,
                              'description': description,
@@ -909,14 +908,16 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
             with self.router() as r:
-                with self.firewall(name=attrs['name'],
-                                   firewall_policy_id=fwp_id,
-                                   admin_state_up=
-                                   ADMIN_STATE_UP,
-                                   router_ids=[r['router']['id']]
-                                   ) as firewall:
-                    for k, v in attrs.iteritems():
-                        self.assertEqual(firewall['firewall'][k], v)
+                with self.router() as r2:
+                    with self.firewall(name=attrs['name'],
+                                       firewall_policy_id=fwp_id,
+                                       admin_state_up=
+                                       ADMIN_STATE_UP,
+                                       router_ids=[r['router']['id'],
+                                                   r2['router']['id']]
+                                       ) as firewall:
+                        for k, v in attrs.iteritems():
+                            self.assertEqual(firewall['firewall'][k], v)
 
     def test_create_firewall(self):
         attrs = self._get_test_firewall_attrs("firewall1")

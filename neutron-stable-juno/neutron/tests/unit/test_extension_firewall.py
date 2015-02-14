@@ -49,6 +49,7 @@ class FirewallExtensionTestCase(test_api_v2_extension.ExtensionTestCase):
                              'admin_state_up': True,
                              'firewall_policy_id': _uuid(),
                              'shared': False,
+                             'router_ids': [_uuid()],
                              'tenant_id': _uuid()}}
         return_value = copy.copy(data['firewall'])
         return_value.update({'id': fw_id})
@@ -373,8 +374,8 @@ class FirewallExtensionTestCase(test_api_v2_extension.ExtensionTestCase):
         self.assertEqual(res, return_value)
 
 
-class FirewallExtensionTestCaseXML(FirewallExtensionTestCase):
-    fmt = 'xml'
+#class FirewallExtensionTestCaseXML(FirewallExtensionTestCase):
+    #fmt = 'xml'
 
 
 class TestFirewallAttributeValidators(base.BaseTestCase):

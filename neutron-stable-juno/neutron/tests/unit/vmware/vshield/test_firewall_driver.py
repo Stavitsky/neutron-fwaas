@@ -25,6 +25,7 @@ from neutron.plugins.vmware.vshield import vcns_driver
 from neutron.tests.unit.db.firewall import test_db_firewall
 from neutron.tests.unit import vmware
 from neutron.tests.unit.vmware.vshield import fake_vcns
+from neutron.tests.unit.test_l3_plugin import L3NatTestCaseMixin
 
 
 _uuid = uuidutils.generate_uuid
@@ -75,7 +76,7 @@ class VcnsDriverTestCase(test_db_firewall.FirewallPluginDbTestCase,
         self.subnet_id = _uuid()
 
 
-class TestEdgeFwDriver(VcnsDriverTestCase):
+class TestEdgeFwDriver(VcnsDriverTestCase, L3NatTestCaseMixin):
 
     def _make_firewall_dict_with_rules(self, context, firewall_id):
         fw = self.get_firewall(context, firewall_id)
@@ -111,16 +112,19 @@ class TestEdgeFwDriver(VcnsDriverTestCase):
             with self.firewall_policy(firewall_rules=fw_rule_ids,
                                       do_delete=False) as fwp:
                 fwp_id = fwp['firewall_policy']['id']
-                with self.firewall(name=name,
-                                   firewall_policy_id=fwp_id) as firewall:
-                    fw_create = firewall['firewall']
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_expect)
-                    fw_get = self.driver.get_firewall(ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
+                with self.router() as r:
+                    with self.firewall(name=name,
+                                       firewall_policy_id=fwp_id,
+                                       router_ids=[r['router']['id']]
+                                       ) as firewall:
+                        fw_create = firewall['firewall']
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_expect)
+                        fw_get = self.driver.get_firewall(ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
 
     def test_update_firewall_with_rules(self):
         ctx = context.get_admin_context()
@@ -135,27 +139,30 @@ class TestEdgeFwDriver(VcnsDriverTestCase):
             with self.firewall_policy(firewall_rules=fw_rule_ids,
                                       do_delete=False) as fwp:
                 fwp_id = fwp['firewall_policy']['id']
-                with self.firewall(name=name,
-                                   firewall_policy_id=fwp_id) as firewall:
-                    fw_create = firewall['firewall']
-                    fw_create = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_create)
+                with self.router() as r:
+                    with self.firewall(name=name,
+                                       firewall_policy_id=fwp_id,
+                                       router_ids=[r['router']['id']]
+                                       ) as firewall:
+                        fw_create = firewall['firewall']
+                        fw_create = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_create)
 
-                    data = {'firewall_rule': {'name': name,
-                                              'source_port': '10:20',
-                                              'destination_port': '30:40'}}
-                    self.new_update_request('firewall_rules', data,
-                                            fr[0]['firewall_rule']['id'])
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_expect)
+                        data = {'firewall_rule': {'name': name,
+                                                  'source_port': '10:20',
+                                                  'destination_port': '30:40'}}
+                        self.new_update_request('firewall_rules', data,
+                                                fr[0]['firewall_rule']['id'])
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_expect)
 
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
 
     def test_delete_firewall(self):
         ctx = context.get_admin_context()
@@ -170,16 +177,19 @@ class TestEdgeFwDriver(VcnsDriverTestCase):
             with self.firewall_policy(firewall_rules=fw_rule_ids,
                                       do_delete=False) as fwp:
                 fwp_id = fwp['firewall_policy']['id']
-                with self.firewall(name=name,
-                                   firewall_policy_id=fwp_id) as firewall:
-                    fw_create = firewall['firewall']
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_expect)
-                    self.driver.delete_firewall(ctx, VSE_ID)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self.assertFalse(fw_get['firewall_rule_list'])
+                with self.router() as r:
+                    with self.firewall(name=name,
+                                       firewall_policy_id=fwp_id,
+                                       router_ids=[r['router']['id']]
+                                       ) as firewall:
+                        fw_create = firewall['firewall']
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_expect)
+                        self.driver.delete_firewall(ctx, VSE_ID)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self.assertFalse(fw_get['firewall_rule_list'])
 
     def test_update_firewall_rule(self):
         ctx = context.get_admin_context()
@@ -190,29 +200,32 @@ class TestEdgeFwDriver(VcnsDriverTestCase):
             with self.firewall_policy(firewall_rules=fw_rule_ids,
                                       do_delete=False) as fwp:
                 fwp_id = fwp['firewall_policy']['id']
-                with self.firewall(name=name,
-                                   firewall_policy_id=fwp_id) as firewall:
-                    fw_create = firewall['firewall']
-                    fw_create = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_create)
+                with self.router() as r:
+                    with self.firewall(name=name,
+                                       firewall_policy_id=fwp_id,
+                                       router_ids=[r['router']['id']]
+                                       ) as firewall:
+                        fw_create = firewall['firewall']
+                        fw_create = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_create)
 
-                    data = {'firewall_rule': {'name': name,
-                                              'source_port': '10:20',
-                                              'destination_port': '30:40'}}
-                    req = self.new_update_request(
-                        'firewall_rules', data,
-                        fr[0]['firewall_rule']['id'])
-                    res = self.deserialize(self.fmt,
-                                           req.get_response(self.ext_api))
-                    rule_expect = res['firewall_rule']
-                    rule_expect['edge_id'] = VSE_ID
-                    self.driver.update_firewall_rule(
-                        ctx, rule_expect['id'], VSE_ID, rule_expect)
-                    rule_get = self.driver.get_firewall_rule(
-                        ctx, rule_expect['id'], VSE_ID)
-                    for k, v in rule_get['firewall_rule'].items():
-                        self.assertEqual(rule_expect[k], v)
+                        data = {'firewall_rule': {'name': name,
+                                                  'source_port': '10:20',
+                                                  'destination_port': '30:40'}}
+                        req = self.new_update_request(
+                            'firewall_rules', data,
+                            fr[0]['firewall_rule']['id'])
+                        res = self.deserialize(self.fmt,
+                                               req.get_response(self.ext_api))
+                        rule_expect = res['firewall_rule']
+                        rule_expect['edge_id'] = VSE_ID
+                        self.driver.update_firewall_rule(
+                            ctx, rule_expect['id'], VSE_ID, rule_expect)
+                        rule_get = self.driver.get_firewall_rule(
+                            ctx, rule_expect['id'], VSE_ID)
+                        for k, v in rule_get['firewall_rule'].items():
+                            self.assertEqual(rule_expect[k], v)
 
     def test_delete_firewall_rule(self):
         ctx = context.get_admin_context()
@@ -225,151 +238,157 @@ class TestEdgeFwDriver(VcnsDriverTestCase):
             with self.firewall_policy(firewall_rules=fw_rule_ids,
                                       do_delete=False) as fwp:
                 fwp_id = fwp['firewall_policy']['id']
-                with self.firewall(name=name,
-                                   firewall_policy_id=fwp_id) as firewall:
-                    fw_create = firewall['firewall']
-                    fw_create = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_create)
+                with self.router() as r:
+                    with self.firewall(name=name,
+                                       firewall_policy_id=fwp_id,
+                                       router_ids=[r['router']['id']]
+                                       ) as firewall:
+                        fw_create = firewall['firewall']
+                        fw_create = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_create)
 
-                    fr[0]['firewall_rule']['edge_id'] = VSE_ID
-                    self.driver.delete_firewall_rule(
-                        ctx, fr[0]['firewall_rule']['id'],
-                        VSE_ID)
-                    self.assertRaises(vcns_exc.VcnsNotFound,
-                                      self.driver.get_firewall_rule,
-                                      ctx, fr[0]['firewall_rule']['id'],
-                                      VSE_ID)
+                        fr[0]['firewall_rule']['edge_id'] = VSE_ID
+                        self.driver.delete_firewall_rule(
+                            ctx, fr[0]['firewall_rule']['id'],
+                            VSE_ID)
+                        self.assertRaises(vcns_exc.VcnsNotFound,
+                                          self.driver.get_firewall_rule,
+                                          ctx, fr[0]['firewall_rule']['id'],
+                                          VSE_ID)
 
     def test_insert_rule(self):
         ctx = context.get_admin_context()
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
-            with self.firewall(firewall_policy_id=fwp_id) as firewall:
-                fw_create = firewall['firewall']
-                fw_create = self._make_firewall_dict_with_rules(
-                    ctx, fw_create['id'])
-                self.driver.update_firewall(ctx, VSE_ID, fw_create)
-                with contextlib.nested(self.firewall_rule(name='fwr0',
-                                                          do_delete=False),
-                                       self.firewall_rule(name='fwr1',
-                                                          do_delete=False),
-                                       self.firewall_rule(name='fwr2',
-                                                          do_delete=False),
-                                       self.firewall_rule(name='fwr3',
-                                                          do_delete=False),
-                                       self.firewall_rule(name='fwr4',
-                                                          do_delete=False),
-                                       self.firewall_rule(name='fwr5',
-                                                          do_delete=False),
-                                       self.firewall_rule(
-                                           name='fwr6',
-                                           do_delete=False)) as fwr:
-                    # test insert when rule list is empty
-                    fwr0_id = fwr[0]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr0_id,
-                                      insert_before=None,
-                                      insert_after=None,
-                                      expected_code=webob.exc.HTTPOk.code)
-                    fw_update = self._make_firewall_dict_with_rules(
+            with self.router() as r:
+                with self.firewall(firewall_policy_id=fwp_id,
+                                   router_ids=[r['router']['id']]
+                                   ) as firewall:
+                    fw_create = firewall['firewall']
+                    fw_create = self._make_firewall_dict_with_rules(
                         ctx, fw_create['id'])
-                    self.driver.update_firewall(ctx, VSE_ID, fw_update)
-                    # test insert at top of list above existing rule
-                    fwr1_id = fwr[1]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr1_id,
-                                      insert_before=fwr0_id,
-                                      insert_after=None,
-                                      expected_code=webob.exc.HTTPOk.code)
+                    self.driver.update_firewall(ctx, VSE_ID, fw_create)
+                    with contextlib.nested(self.firewall_rule(name='fwr0',
+                                                              do_delete=False),
+                                           self.firewall_rule(name='fwr1',
+                                                              do_delete=False),
+                                           self.firewall_rule(name='fwr2',
+                                                              do_delete=False),
+                                           self.firewall_rule(name='fwr3',
+                                                              do_delete=False),
+                                           self.firewall_rule(name='fwr4',
+                                                              do_delete=False),
+                                           self.firewall_rule(name='fwr5',
+                                                              do_delete=False),
+                                           self.firewall_rule(
+                                               name='fwr6',
+                                               do_delete=False)) as fwr:
+                        # test insert when rule list is empty
+                        fwr0_id = fwr[0]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr0_id,
+                                          insert_before=None,
+                                          insert_after=None,
+                                          expected_code=webob.exc.HTTPOk.code)
+                        fw_update = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
+                        self.driver.update_firewall(ctx, VSE_ID, fw_update)
+                        # test insert at top of list above existing rule
+                        fwr1_id = fwr[1]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr1_id,
+                                          insert_before=fwr0_id,
+                                          insert_after=None,
+                                          expected_code=webob.exc.HTTPOk.code)
 
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
 
-                    rule_info = {'firewall_rule_id': fwr1_id,
-                                 'insert_before': fwr0_id,
-                                 'insert_after': None}
-                    rule = fwr[1]['firewall_rule']
-                    self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
-                    # test insert at bottom of list
-                    fwr2_id = fwr[2]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr2_id,
-                                      insert_before=None,
-                                      insert_after=fwr0_id,
-                                      expected_code=webob.exc.HTTPOk.code)
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
+                        rule_info = {'firewall_rule_id': fwr1_id,
+                                     'insert_before': fwr0_id,
+                                     'insert_after': None}
+                        rule = fwr[1]['firewall_rule']
+                        self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
+                        # test insert at bottom of list
+                        fwr2_id = fwr[2]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr2_id,
+                                          insert_before=None,
+                                          insert_after=fwr0_id,
+                                          expected_code=webob.exc.HTTPOk.code)
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
 
-                    rule_info = {'firewall_rule_id': fwr2_id,
-                                 'insert_before': None,
-                                 'insert_after': fwr0_id}
-                    rule = fwr[2]['firewall_rule']
-                    self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
-                    # test insert in the middle of the list using
-                    # insert_before
-                    fwr3_id = fwr[3]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr3_id,
-                                      insert_before=fwr2_id,
-                                      insert_after=None,
-                                      expected_code=webob.exc.HTTPOk.code)
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
+                        rule_info = {'firewall_rule_id': fwr2_id,
+                                     'insert_before': None,
+                                     'insert_after': fwr0_id}
+                        rule = fwr[2]['firewall_rule']
+                        self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
+                        # test insert in the middle of the list using
+                        # insert_before
+                        fwr3_id = fwr[3]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr3_id,
+                                          insert_before=fwr2_id,
+                                          insert_after=None,
+                                          expected_code=webob.exc.HTTPOk.code)
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
 
-                    rule_info = {'firewall_rule_id': fwr3_id,
-                                 'insert_before': fwr2_id,
-                                 'insert_after': None}
-                    rule = fwr[3]['firewall_rule']
-                    self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
-                    # test insert in the middle of the list using
-                    # insert_after
-                    fwr4_id = fwr[4]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr4_id,
-                                      insert_before=None,
-                                      insert_after=fwr3_id,
-                                      expected_code=webob.exc.HTTPOk.code)
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
+                        rule_info = {'firewall_rule_id': fwr3_id,
+                                     'insert_before': fwr2_id,
+                                     'insert_after': None}
+                        rule = fwr[3]['firewall_rule']
+                        self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
+                        # test insert in the middle of the list using
+                        # insert_after
+                        fwr4_id = fwr[4]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr4_id,
+                                          insert_before=None,
+                                          insert_after=fwr3_id,
+                                          expected_code=webob.exc.HTTPOk.code)
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
 
-                    rule_info = {'firewall_rule_id': fwr4_id,
-                                 'insert_before': None,
-                                 'insert_after': fwr3_id}
-                    rule = fwr[4]['firewall_rule']
-                    self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
-                    # test insert when both insert_before and
-                    # insert_after are set
-                    fwr5_id = fwr[5]['firewall_rule']['id']
-                    self._rule_action('insert', fwp_id, fwr5_id,
-                                      insert_before=fwr4_id,
-                                      insert_after=fwr4_id,
-                                      expected_code=webob.exc.HTTPOk.code)
-                    fw_expect = self._make_firewall_dict_with_rules(
-                        ctx, fw_create['id'])
+                        rule_info = {'firewall_rule_id': fwr4_id,
+                                     'insert_before': None,
+                                     'insert_after': fwr3_id}
+                        rule = fwr[4]['firewall_rule']
+                        self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])
+                        # test insert when both insert_before and
+                        # insert_after are set
+                        fwr5_id = fwr[5]['firewall_rule']['id']
+                        self._rule_action('insert', fwp_id, fwr5_id,
+                                          insert_before=fwr4_id,
+                                          insert_after=fwr4_id,
+                                          expected_code=webob.exc.HTTPOk.code)
+                        fw_expect = self._make_firewall_dict_with_rules(
+                            ctx, fw_create['id'])
 
-                    rule_info = {'firewall_rule_id': fwr5_id,
-                                 'insert_before': fwr4_id,
-                                 'insert_after': fwr4_id}
-                    rule = fwr[5]['firewall_rule']
-                    self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
-                    fw_get = self.driver.get_firewall(
-                        ctx, VSE_ID)
-                    self._compare_firewall_rule_lists(
-                        fwp_id, fw_get['firewall_rule_list'],
-                        fw_expect['firewall_rule_list'])
+                        rule_info = {'firewall_rule_id': fwr5_id,
+                                     'insert_before': fwr4_id,
+                                     'insert_after': fwr4_id}
+                        rule = fwr[5]['firewall_rule']
+                        self.driver.insert_rule(ctx, rule_info, VSE_ID, rule)
+                        fw_get = self.driver.get_firewall(
+                            ctx, VSE_ID)
+                        self._compare_firewall_rule_lists(
+                            fwp_id, fw_get['firewall_rule_list'],
+                            fw_expect['firewall_rule_list'])

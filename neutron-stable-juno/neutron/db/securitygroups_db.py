@@ -520,6 +520,7 @@ class SecurityGroupDbMixin(ext_sg.SecurityGroupPluginBase):
 
         :returns: all security groups IDs on port belonging to tenant.
         """
+
         p = port['port']
         if not attr.is_attr_set(p.get(ext_sg.SECURITYGROUPS)):
             return
@@ -534,7 +535,6 @@ class SecurityGroupDbMixin(ext_sg.SecurityGroupPluginBase):
         valid_groups = set(g['id'] for g in
                            self.get_security_groups(context, fields=['id'],
                                                     filters=filters))
-
         requested_groups = set(port_sg)
         port_sg_missing = requested_groups - valid_groups
         if port_sg_missing:

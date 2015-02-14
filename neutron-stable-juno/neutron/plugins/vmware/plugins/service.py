@@ -904,12 +904,12 @@ class NsxAdvancedPlugin(sr_db.ServiceRouter_mixin,
         self.vcns_driver.delete_firewall(context, edge_id)
 
     def create_firewall(self, context, firewall):
-        #For test purposes.
-        if type(firewall['firewall'].get(vcns_const.ROUTER_ID)) is list:
-            router_id = firewall['firewall'].get(vcns_const.ROUTER_ID)[0]
-        else:
-            router_id = firewall['firewall'].get(vcns_const.ROUTER_ID)
         LOG.debug("create_firewall() called")
+        #For test purposes.
+        if type(firewall['firewall'].get(vcns_const.ROUTER_IDS)) is list:
+            router_id = firewall['firewall'].get(vcns_const.ROUTER_IDS)[0]
+        else:
+            router_id = firewall['firewall'].get(vcns_const.ROUTER_IDS)
         if not router_id:
             msg = _("router_id is not provided!")
             LOG.error(msg)
