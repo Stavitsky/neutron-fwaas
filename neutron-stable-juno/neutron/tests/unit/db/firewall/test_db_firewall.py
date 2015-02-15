@@ -156,8 +156,9 @@ class FirewallPluginDbTestCase(test_db_plugin.NeutronDbPluginV2TestCase):
                  'audited': audited}
         return attrs
 
-    def _get_test_firewall_attrs(
-        self, name='firewall_1', status='PENDING_CREATE'):
+    def _get_test_firewall_attrs(self,
+                                 name='firewall_1',
+                                 status='PENDING_CREATE'):
         attrs = {'name': name,
                  'tenant_id': self._tenant_id,
                  'admin_state_up': ADMIN_STATE_UP,
@@ -333,11 +334,11 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
     def test_check_router_has_firewall(self):
         ctx = context.get_admin_context()
         with self.router() as r:
-            rid = r['router']['id']
-            with self.firewall(router_ids=[r['router']['id']]):
+            r_id = r['router']['id']
+            with self.firewall(router_ids=[r_id]):
                 fw_count = self.plugin.check_router_has_firewall(
                        context=ctx,
-                       router_id=rid)
+                       router_id=r_id)
             self.assertEqual(fw_count, 1)
 
     def test_create_firewall_policy(self):
@@ -396,11 +397,9 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
 
     def test_get_current_filtered_router_ids(self):
         ctx = context.get_admin_context()
-        router_ids = []
         with contextlib.nested(self.router(),
-                               self.router()) as routers:
-            for i in range(0, 2):
-                router_ids.append(routers[i]['router']['id'])
+                               self.router()) as rs:
+            router_ids = [r['router']['id'] for r in rs]
             current_routers = (self.plugin.
                                get_current_filtered_router_ids(ctx,
                                                                router_ids))
@@ -409,15 +408,16 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
     def test_get_router_ids_by_firewall_id(self):
         ctx = context.get_admin_context()
         with contextlib.nested(self.router(),
-                               self.router()) as routers:
-            r1_id = routers[0]['router']['id']
-            r2_id = routers[1]['router']['id']
-            with self.firewall(router_ids=[r1_id, r2_id]) as fw:
+                               self.router()) as rs:
+            router_ids_from_routers = [r['router']['id'] for r in rs]
+            with self.firewall(router_ids=router_ids_from_routers) as fw:
                 fw_id = fw['firewall']['id']
-                router_ids = (self.plugin.
-                              get_router_ids_by_firewall_id(ctx,
-                                                            fw_id))
-                self.assertEqual(set(router_ids), set([r1_id, r2_id]))
+                router_ids_from_firewall = (self.plugin.
+                                            get_router_ids_by_firewall_id(
+                                                ctx,
+                                                fw_id))
+                self.assertEqual(set(router_ids_from_routers),
+                                 set(router_ids_from_firewall))
 
     def test_get_firewall_id_by_router_id(self):
         ctx = context.get_admin_context()
@@ -954,12 +954,15 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
-            with self.router() as r:
+            with contextlib.nested(self.router(),
+                                   self.router(),
+                                   self.router()) as rs:
+                router_ids = [r['router']['id'] for r in rs]
                 with self.firewall(name=attrs['name'],
                                    firewall_policy_id=fwp_id,
                                    admin_state_up=
                                    ADMIN_STATE_UP,
-                                   router_ids=[r['router']['id']]
+                                   router_ids=router_ids
                                    ) as firewall:
                     for k, v in attrs.iteritems():
                         self.assertEqual(firewall['firewall'][k], v)
@@ -1046,7 +1049,6 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             with self.router() as r:
-                print [r['router']['id']]
                 with self.firewall(firewall_policy_id=fwp_id,
                                    router_ids=[r['router']['id']],
                                    do_delete=False) as fw:
