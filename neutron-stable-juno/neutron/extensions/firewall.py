@@ -177,12 +177,6 @@ def convert_port_to_string(value):
         return str(value)
 
 
-def convert_router_id(data):
-    print data
-    if type(data['router_id']) is str:
-        return [data['router_id']]
-
-
 def _validate_port_range(data, key_specs=None):
     if data is None:
         return
@@ -326,7 +320,6 @@ RESOURCE_ATTRIBUTE_MAP = {
                                'validate': {'type:uuid_or_none': None},
                                'is_visible': True},
         'router_ids': {'allow_post': True, 'allow_put': True,
-                       'convert_to': attr.convert_none_to_empty_list,
                        'validate': {'type:uuid_list': None},
                        'is_visible': True},
     },

@@ -20,7 +20,6 @@ import argparse
 
 from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
-from neutronclient.common import utils
 
 
 def _format(firewall):
@@ -61,8 +60,7 @@ class CreateFirewall(neutronv20.CreateCommand):
             help=_('Name for the firewall.'))
         parser.add_argument(
             '--router', metavar='ROUTER',
-            help=_('Specify router id'), action='append', required=True,
-            type=utils.str2dict)
+            help=_('Specify router id'), action='append', required=True)
         parser.add_argument(
             '--description',
             help=_('Description for the firewall rule.'))
