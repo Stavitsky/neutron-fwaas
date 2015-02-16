@@ -174,9 +174,9 @@ class RouterHasFirewall(n_exception.Conflict):
 
 class CorruptedRouterId(n_exception.Conflict):
 
-    """One or more requested routers have wrong id."""
+    """Some of requested routers does not exist."""
 
-    message = _("One or more requested routers have wrong id.")
+    message = _("Requested router(s) %(router_ids)s does not exist.")
 
 
 class FirewallPlugin(firewall_db.Firewall_db_mixin):
@@ -263,8 +263,9 @@ class FirewallPlugin(firewall_db.Firewall_db_mixin):
         new_routers = firewall['firewall']['router_ids']
         current_routers = self.get_current_filtered_router_ids(
             context, new_routers)
-        if set(new_routers) != set(current_routers):
-            raise CorruptedRouterId()
+        routers_not_found = set(new_routers) - set(current_routers)
+        if routers_not_found:
+            raise CorruptedRouterId(router_ids=list(routers_not_found))
         for router_id in new_routers:
             current_firewall = self.check_router_has_firewall(context,
                                                               router_id)
@@ -286,6 +287,9 @@ class FirewallPlugin(firewall_db.Firewall_db_mixin):
         else:
             current_routers = self.get_router_ids_by_firewall_id(context,
                                                                  id)
+            routers_not_found = set(new_routers) - set(current_routers)
+            if routers_not_found:
+                raise CorruptedRouterId(router_ids=list(routers_not_found))
             for router_id in new_routers:
                 current_firewall = self.check_router_has_firewall(context,
                                                                   router_id)

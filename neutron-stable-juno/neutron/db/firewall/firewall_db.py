@@ -135,7 +135,8 @@ class Firewall_db_mixin(firewall.FirewallPluginBase, base_db.CommonDbMixin):
                'shared': fw['shared'],
                'admin_state_up': fw['admin_state_up'],
                'status': fw['status'],
-               'firewall_policy_id': fw['firewall_policy_id']}
+               'firewall_policy_id': fw['firewall_policy_id'],
+               'router_ids': [r['id'] for r in fw.routers]}
         return self._fields(res, fields)
 
     def _make_firewall_policy_dict(self, firewall_policy, fields=None):

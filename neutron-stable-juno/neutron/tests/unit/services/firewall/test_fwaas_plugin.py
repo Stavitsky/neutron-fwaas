@@ -231,6 +231,49 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
         super(TestFirewallPluginBase, self).setUp(fw_plugin=FW_PLUGIN_KLASS)
         self.callbacks = self.plugin.endpoints[0]
 
+    def test_create_firewall_admin_not_affected_by_other_tenant(self):
+        # Create fw with admin after creating fw with other tenant
+        with self.router(tenant_id='other-tenant') as r1:
+            with self.router() as r2:
+                with self.firewall(tenant_id='other-tenant',
+                                   router_ids=[r1['router']['id']]) as fw1:
+                    with self.firewall(router_ids=[r2['router']['id']]) as fw2:
+                        self.assertEqual('other-tenant',
+                                         fw1['firewall']['tenant_id'])
+                        self.assertEqual(self._tenant_id,
+                                         fw2['firewall']['tenant_id'])
+
+    def test_create_firewall_fails_when_fake_router_ids(self):
+        with self.firewall_policy() as fwp:
+            fwp_id = fwp['firewall_policy']['id']
+            tenant_id = fwp['firewall_policy']['tenant_id']
+            with self.router() as r:
+                real_router_id = r['router']['id']
+                fake_router_id_1 = '550e8400-e29b-41d4-a716-446655440000'
+                fake_router_id_2 = '94fecd16-b5ce-11e4-a71e-12e3f512a338'
+                data = {'firewall': {'tenant_id': tenant_id,
+                                     'router_ids': [real_router_id,
+                                                    fake_router_id_1,
+                                                    fake_router_id_2],
+                                     'firewall_policy_id': fwp_id}}
+                req = self.new_create_request('firewalls', data)
+                res = req.get_response(self.ext_api)
+                self.assertEqual(res.status_int, exc.HTTPConflict.code)
+
+    def test_create_firewall_fails_when_router_is_busy(self):
+        with self.firewall_policy() as fwp:
+            fwp_id = fwp['firewall_policy']['id']
+            with self.router() as r:
+                r_id = r['router']['id']
+                with self.firewall(router_ids=[r_id]) as fw:
+                    tenant_id = fw['firewall']['tenant_id']
+                    data = {'firewall': {'router_ids': [r_id],
+                                         'tenant_id': tenant_id,
+                                         'firewall_policy_id': fwp_id}}
+                    req = self.new_create_request('firewalls', data)
+                    res = req.get_response(self.ext_api)
+                    self.assertEqual(res.status_int, exc.HTTPConflict.code)
+
     def test_create_second_firewall_permitted(self):
         with contextlib.nested(self.router(),
                                self.router()) as routers:
@@ -245,18 +288,6 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
                 self.assertEqual(self._tenant_id,
                                  fw2_tenant_id)
 
-    def test_create_firewall_admin_not_affected_by_other_tenant(self):
-        # Create fw with admin after creating fw with other tenant
-        with self.router(tenant_id='other-tenant') as r1:
-            with self.router() as r2:
-                with self.firewall(tenant_id='other-tenant',
-                                   router_ids=[r1['router']['id']]) as fw1:
-                    with self.firewall(router_ids=[r2['router']['id']]) as fw2:
-                        self.assertEqual('other-tenant',
-                                         fw1['firewall']['tenant_id'])
-                        self.assertEqual(self._tenant_id,
-                                         fw2['firewall']['tenant_id'])
-
     def test_update_firewall(self):
         ctx = context.get_admin_context()
         name = "new_firewall1"
@@ -266,10 +297,12 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id
             with self.router() as r:
+                r_id = r['router']['id']
+                attrs['router_ids'] = [r_id]
                 with self.firewall(firewall_policy_id=fwp_id,
                                    admin_state_up=
                                    test_db_firewall.ADMIN_STATE_UP,
-                                   router_ids=[r['router']['id']]) as firewall:
+                                   router_ids=[r_id]) as firewall:
                     fw_id = firewall['firewall']['id']
                     res = self.callbacks.set_firewall_status(ctx, fw_id,
                                                              const.ACTIVE)
@@ -282,6 +315,23 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
                                                           const.PENDING_UPDATE)
                     for k, v in attrs.iteritems():
                         self.assertEqual(res['firewall'][k], v)
+
+    def test_update_firewall_fails_when_fake_router_ids(self):
+        with self.firewall_policy() as fwp:
+            fwp_id = fwp['firewall_policy']['id']
+            with self.router() as r:
+                real_router_id = r['router']['id']
+                fake_router_id_1 = '550e8400-e29b-41d4-a716-446655440000'
+                fake_router_id_2 = '94fecd16-b5ce-11e4-a71e-12e3f512a338'
+                with self.firewall(router_ids=[real_router_id]) as fw:
+                    fw_id = fw['firewall']['id']
+                    data = {'firewall': {'router_ids': [real_router_id,
+                                                        fake_router_id_1,
+                                                        fake_router_id_2],
+                                         'firewall_policy_id': fwp_id}}
+                    req = self.new_update_request('firewalls', data, fw_id)
+                    res = req.get_response(self.ext_api)
+                    self.assertEqual(res.status_int, exc.HTTPConflict.code)
 
     def test_update_firewall_fails_when_firewall_pending(self):
         name = "new_firewall1"
@@ -300,6 +350,19 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
                     req = self.new_update_request('firewalls', data, fw_id)
                     res = req.get_response(self.ext_api)
                     self.assertEqual(res.status_int, exc.HTTPConflict.code)
+
+    def test_update_firewall_fails_when_router_is_busy(self):
+        with contextlib.nested(self.router(),
+                               self.router()) as rs:
+            r1_id = rs[0]['router']['id']
+            r2_id = rs[1]['router']['id']
+            with contextlib.nested(self.firewall(router_ids=[r1_id]),
+                                   self.firewall(router_ids=[r2_id])) as fws:
+                fw1_id = fws[0]['firewall']['id']
+                data = {'firewall': {'router_ids': [r2_id]}}
+                req = self.new_update_request('firewalls', data, fw1_id)
+                res = req.get_response(self.ext_api)
+                self.assertEqual(res.status_int, exc.HTTPConflict.code)
 
     def test_update_firewall_shared_fails_for_non_admin(self):
         ctx = context.get_admin_context()

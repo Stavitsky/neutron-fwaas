@@ -14,6 +14,10 @@
 #  under the License.
 
 from oslo.config import cfg
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 import contextlib
 
@@ -428,7 +432,6 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
                                                       r_id))
                 self.assertEqual(fw['firewall']['id'], fw_id)
 
-
     def test_show_firewall_policy(self):
         name = "firewall_policy1"
         attrs = self._get_test_firewall_policy_attrs(name)
@@ -601,6 +604,26 @@ class TestFirewallDBPlugin(FirewallPluginDbTestCase, L3NatTestCaseMixin):
                                        req.get_response(self.ext_api))
                 for k, v in attrs.iteritems():
                     self.assertEqual(res['firewall_policy'][k], v)
+
+    def test_update_firewall_router_ids(self):
+        attrs = self._get_test_firewall_attrs()
+        with contextlib.nested(self.router(),
+                               self.router()) as rs:
+            r1_id = rs[0]['router']['id']
+            r2_id = rs[1]['router']['id']
+            with self.firewall(router_ids=[r1_id]) as fw:
+                fw_id = fw['firewall']['id']
+                name = 'new_firewall_name'
+                data = {'firewall': {'name': name,
+                                     'router_ids': [r1_id, r2_id]}}
+                # data = {'firewall': {'name': name}}
+                req = self.new_update_request('firewalls', data, fw_id)
+                attrs['name'] = name
+                attrs['router_ids'] = [r1_id, r2_id]
+                res = req.get_response(self.ext_api)
+                updated_fw = json.loads(res.body)
+                for k, v in attrs.iteritems():
+                    self.assertEqual(updated_fw['firewall'][k], v)
 
     def test_update_shared_firewall_policy_with_unshared_rule(self):
         with self.firewall_rule(name='fwr1', shared=False) as fr:
