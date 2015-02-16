@@ -107,19 +107,17 @@ class FirewallPluginTestCase(test_db_firewall.FirewallPluginDbTestCase,
 
     def _create_firewall(self, fmt, name, description, firewall_policy_id,
                          admin_state_up=True, expected_res_status=None,
-                         **kwargs):
+                         router_id=None, **kwargs):
         data = {'firewall': {'name': name,
                              'description': description,
                              'firewall_policy_id': firewall_policy_id,
-                             'router_id': kwargs.get('router_id'),
+                             'router_ids': [router_id],
                              'admin_state_up': admin_state_up,
                              'tenant_id': self._tenant_id}}
-
         firewall_req = self.new_create_request('firewalls', data, fmt)
         firewall_res = firewall_req.get_response(self.ext_api)
         if expected_res_status:
             self.assertEqual(firewall_res.status_int, expected_res_status)
-
         return firewall_res
 
     def test_create_firewall(self):
@@ -145,7 +143,6 @@ class FirewallPluginTestCase(test_db_firewall.FirewallPluginDbTestCase,
         name = "new_fw"
         attrs = self._get_test_firewall_attrs(name)
         attrs['router_id'] = self._create_and_get_router()
-
         with self.firewall(name=name,
                            router_id=attrs['router_id'],
                            admin_state_up=
@@ -160,7 +157,6 @@ class FirewallPluginTestCase(test_db_firewall.FirewallPluginDbTestCase,
         name = "new_fw"
         attrs = self._get_test_firewall_attrs(name)
         attrs['router_id'] = self._create_and_get_router()
-
         with self.firewall_policy() as fwp:
             fwp_id = fwp['firewall_policy']['id']
             attrs['firewall_policy_id'] = fwp_id

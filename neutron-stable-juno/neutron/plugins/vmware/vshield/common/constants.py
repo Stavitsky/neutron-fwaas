@@ -15,6 +15,7 @@
 
 EDGE_ID = 'edge_id'
 ROUTER_ID = 'router_id'
+ROUTER_IDS = 'router_ids'
 
 # Interface
 EXTERNAL_VNIC_INDEX = 0

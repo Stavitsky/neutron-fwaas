@@ -261,8 +261,7 @@ class FirewallPluginDbTestCase(test_db_plugin.NeutronDbPluginV2TestCase):
 
     def _create_firewall(self, fmt, name, description, firewall_policy_id,
                          admin_state_up=True, expected_res_status=None,
-                         router_ids=None,
-                         **kwargs):
+                         router_ids=None, **kwargs):
         tenant_id = kwargs.get('tenant_id', self._tenant_id)
         data = {'firewall': {'name': name,
                              'description': description,

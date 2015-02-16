@@ -642,7 +642,6 @@ class SGServerRpcCallBackTestCase(test_sg.SecurityGroupDBTestCase):
                 rules = {
                     'security_group_rules': [rule1['security_group_rule']]}
                 self._make_security_group_rule(self.fmt, rules)
-
                 # Create gateway port
                 gateway_res = self._make_port(
                     self.fmt, n['network']['id'],
@@ -654,7 +653,6 @@ class SGServerRpcCallBackTestCase(test_sg.SecurityGroupDBTestCase):
                 gateway_lla_ip = str(ipv6.get_ipv6_addr_by_EUI64(
                     const.IPV6_LLA_PREFIX,
                     gateway_mac))
-
                 ports_rest1 = self._make_port(
                     self.fmt, n['network']['id'],
                     fixed_ips=[{'subnet_id': subnet_v6['subnet']['id']}],
@@ -663,6 +661,7 @@ class SGServerRpcCallBackTestCase(test_sg.SecurityGroupDBTestCase):
                 self.rpc.devices = {port_id1: ports_rest1['port']}
                 devices = [port_id1, 'no_exist_device']
                 ctx = context.get_admin_context()
+
                 ports_rpc = self.rpc.security_group_rules_for_devices(
                     ctx, devices=devices)
                 port_rpc = ports_rpc[port_id1]
