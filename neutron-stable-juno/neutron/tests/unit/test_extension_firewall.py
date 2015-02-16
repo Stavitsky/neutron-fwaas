@@ -374,8 +374,8 @@ class FirewallExtensionTestCase(test_api_v2_extension.ExtensionTestCase):
         self.assertEqual(res, return_value)
 
 
-#class FirewallExtensionTestCaseXML(FirewallExtensionTestCase):
-    #fmt = 'xml'
+class FirewallExtensionTestCaseXML(FirewallExtensionTestCase):
+    fmt = 'xml'
 
 
 class TestFirewallAttributeValidators(base.BaseTestCase):
