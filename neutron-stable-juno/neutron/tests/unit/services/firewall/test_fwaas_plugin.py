@@ -232,14 +232,18 @@ class TestFirewallPluginBase(test_db_firewall.TestFirewallDBPlugin):
         self.callbacks = self.plugin.endpoints[0]
 
     def test_create_second_firewall_permitted(self):
-        with self.router() as r1:
-            with self.router() as r2:
-                with self.firewall(router_ids=[r1['router']['id']]) as fw1:
-                    with self.firewall(router_ids=[r2['router']['id']]) as fw2:
-                        self.assertEqual(self._tenant_id,
-                                         fw1['firewall']['tenant_id'])
-                        self.assertEqual(self._tenant_id,
-                                         fw2['firewall']['tenant_id'])
+        with contextlib.nested(self.router(),
+                               self.router()) as routers:
+            r1_id = routers[0]['router']['id']
+            r2_id = routers[1]['router']['id']
+            with contextlib.nested(self.firewall(router_ids=[r1_id]),
+                                   self.firewall(router_ids=[r2_id])) as fws:
+                fw1_tenant_id = fws[0]['firewall']['tenant_id']
+                fw2_tenant_id = fws[1]['firewall']['tenant_id']
+                self.assertEqual(self._tenant_id,
+                                 fw1_tenant_id)
+                self.assertEqual(self._tenant_id,
+                                 fw2_tenant_id)
 
     def test_create_firewall_admin_not_affected_by_other_tenant(self):
         # Create fw with admin after creating fw with other tenant
