@@ -283,24 +283,31 @@ class FirewallPlugin(firewall_db.Firewall_db_mixin):
         try:
             new_routers = firewall['firewall']['router_ids']
         except KeyError:
-            current_routers = None
+            current_routers_on_this_firewall = None
         else:
-            current_routers = self.get_router_ids_by_firewall_id(context,
-                                                                 id)
-            routers_not_found = set(new_routers) - set(current_routers)
+            current_routers_on_this_firewall = (self.
+                                                get_router_ids_by_firewall_id(
+                                                   context,
+                                                   id))
+            all_existing_routers = self.get_current_filtered_router_ids(
+                                   context, new_routers)
+            routers_not_found = (set(new_routers) -
+                                 set(all_existing_routers))
             if routers_not_found:
                 raise CorruptedRouterId(router_ids=list(routers_not_found))
             for router_id in new_routers:
                 current_firewall = self.check_router_has_firewall(context,
                                                                   router_id)
-                if current_firewall and router_id not in current_routers:
+                if current_firewall and (router_id not in
+                                         current_routers_on_this_firewall):
                     raise RouterHasFirewall(router_id=router_id)
         self._ensure_update_firewall(context, id)
         firewall['firewall']['status'] = const.PENDING_UPDATE
         fw = super(FirewallPlugin, self).update_firewall(context, id, firewall)
-        if current_routers:
-            routers_to_delete = set(current_routers) - (set(current_routers) &
-                                                        set(fw['router_ids']))
+        if current_routers_on_this_firewall:
+            routers_to_delete = (set(current_routers_on_this_firewall) -
+                                    (set(current_routers_on_this_firewall)
+                                        & set(fw['router_ids'])))
         else:
             routers_to_delete = []
         LOG.debug(_(routers_to_delete))
