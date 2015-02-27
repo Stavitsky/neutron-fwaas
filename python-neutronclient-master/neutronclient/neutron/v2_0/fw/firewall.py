@@ -83,7 +83,7 @@ class CreateFirewall(neutronv20.CreateCommand):
         if parsed_args.routers:
             for r in parsed_args.routers:
                 _router_ids.append(neutronv20.find_resourceid_by_name_or_id(
-                    self.get_client(), 'routerf', r))
+                    self.get_client(), 'router', r))
         body = {
             self.resource: {
                 'firewall_policy_id': _policy_id,
